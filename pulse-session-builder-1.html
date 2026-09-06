@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Pulse — cardiac-safe session builder</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#101E2E">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF1F0;
+  --card:#FFFFFF;
+  --ink:#101E2E;
+  --ink2:#4A5866;
+  --ink3:#7C8996;
+  --line:#D6DCDA;
+  --pulse:#B8342B;
+  --pulse-soft:#FBEDEB;
+  --safe:#1E6B5E;
+  --safe-soft:#E6F1EE;
+  --warn:#96671C;
+  --warn-soft:#FBF2E2;
+  --r:14px;
+  --shadow:0 1px 0 rgba(16,30,46,.06), 0 8px 24px -18px rgba(16,30,46,.5);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Archivo',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  font-variant-numeric:tabular-nums;
+  padding-bottom:120px;
+}
+.wrap{max-width:560px;margin:0 auto;padding:0 16px}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.02em;line-height:1.15}
+h1{font-size:29px}
+h2{font-size:20px}
+h3{font-size:16.5px}
+p{margin:0}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+input,select{font-family:inherit;font-size:inherit;color:inherit}
+a{color:var(--pulse)}
+
+/* ---------- masthead + ecg ---------- */
+.mast{padding:22px 0 10px}
+.mast .kicker{font-size:13.5px;color:var(--ink3);margin-top:6px}
+.trace{display:block;width:100%;height:46px;margin:12px 0 2px}
+.trace path{fill:none;stroke:var(--pulse);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.trace .flat{stroke:var(--line);stroke-width:1.5}
+@media (prefers-reduced-motion:no-preference){
+  .trace .beat{stroke-dasharray:900;stroke-dashoffset:900;animation:draw 2.2s cubic-bezier(.4,0,.2,1) forwards}
+  body.resting .trace .beat{animation:draw 1.6s linear infinite}
+}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* ---------- blocks ---------- */
+.step{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:14px 0;box-shadow:var(--shadow)}
+.step-head{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.step-num{width:22px;height:22px;flex:0 0 22px;border-radius:50%;border:1.5px solid var(--ink);
+  display:grid;place-items:center;font-size:12px;font-weight:600;transform:translateY(2px)}
+.hint{font-size:13.5px;color:var(--ink2);margin:6px 0 12px}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 14px;font-size:14.5px;font-weight:500;color:var(--ink2)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip:disabled{opacity:.35}
+
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .lbl{font-size:15.5px;font-weight:500}
+.row .sub{font-size:12.5px;color:var(--ink3);font-weight:400}
+.stepper{display:flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stepper button{width:38px;height:38px;border:0;background:#fff;color:var(--ink);font-size:19px;line-height:1}
+.stepper button:active{background:var(--paper)}
+.stepper .val{width:34px;text-align:center;font-weight:600}
+
+.slider{margin:14px 0 2px}
+.slider .top{display:flex;justify-content:space-between;font-size:14.5px;margin-bottom:2px}
+.slider .top b{font-weight:600}
+input[type=range]{width:100%;accent-color:var(--ink);height:26px}
+
+.cta{width:100%;border:0;border-radius:12px;background:var(--ink);color:#fff;padding:16px;font-size:16.5px;font-weight:600;margin-top:6px}
+.cta:disabled{background:#B8C0C6}
+.ghost{width:100%;border:1px solid var(--line);background:#fff;border-radius:12px;padding:13px;font-weight:500;color:var(--ink2);margin-top:8px}
+
+/* ---------- guardrail strip ---------- */
+.guard{background:var(--pulse-soft);border:1px solid #F0CFCA;border-left:3px solid var(--pulse);border-radius:10px;padding:13px 14px;margin:14px 0}
+.guard h3{color:var(--pulse);font-size:14.5px;margin-bottom:6px}
+.guard ul{margin:0;padding-left:17px;font-size:13.5px;color:var(--ink2)}
+.guard li{margin:3px 0}
+.guard.calm{background:var(--safe-soft);border-color:#C7E0D9;border-left-color:var(--safe)}
+.guard.calm h3{color:var(--safe)}
+
+/* ---------- exercise card ---------- */
+.ex{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px;margin:12px 0;box-shadow:var(--shadow)}
+.ex.done{border-color:#C7E0D9;background:#FCFEFD}
+.ex-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0 0}
+.tag{font-size:11.5px;padding:3px 8px;border-radius:6px;background:var(--paper);color:var(--ink2);border:1px solid var(--line)}
+.tag.t1{background:var(--safe-soft);border-color:#C7E0D9;color:var(--safe)}
+.tag.t2{background:var(--warn-soft);border-color:#EEDCBB;color:var(--warn)}
+.cue{font-size:13px;color:var(--ink2);margin-top:9px;padding-left:10px;border-left:2px solid var(--line)}
+.rx{font-size:13.5px;color:var(--ink2);margin-top:9px;font-weight:500}
+.prev{font-size:12.5px;color:var(--ink3);margin-top:3px}
+.exbtns{display:flex;gap:8px;margin-top:11px}
+.exbtns a,.exbtns button{flex:1;text-align:center;text-decoration:none;border:1px solid var(--line);background:#fff;
+  border-radius:10px;padding:10px;font-size:13.5px;font-weight:500;color:var(--ink2)}
+
+table.sets{width:100%;border-collapse:collapse;margin-top:12px}
+table.sets th{font-size:11.5px;font-weight:500;color:var(--ink3);text-align:left;padding:0 4px 5px}
+table.sets td{padding:3px 4px}
+table.sets input{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 6px;text-align:center;font-weight:600;background:#fff}
+table.sets input:focus{outline:2px solid var(--ink);outline-offset:-1px}
+.setno{width:26px;color:var(--ink3);font-size:13px;text-align:center}
+.tick{width:42px;height:40px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink3);font-size:16px}
+.tick[aria-pressed="true"]{background:var(--safe);border-color:var(--safe);color:#fff}
+.addset{margin-top:8px;border:1px dashed var(--line);background:transparent;border-radius:10px;padding:9px;width:100%;font-size:13.5px;color:var(--ink2)}
+
+/* ---------- rest bar ---------- */
+.restbar{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:#fff;padding:12px 16px;
+  display:none;align-items:center;gap:14px;z-index:40}
+.restbar.on{display:flex}
+.restbar .t{font-size:26px;font-weight:600;min-width:74px}
+.restbar .meta{font-size:12.5px;opacity:.75;flex:1}
+.restbar button{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:9px;padding:9px 12px;font-size:13px}
+.bar{position:absolute;left:0;bottom:0;height:3px;background:var(--pulse);transition:width 1s linear}
+
+/* ---------- nav ---------- */
+.tabs{display:flex;gap:6px;margin:16px 0 4px}
+.tabs button{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px;font-size:14px;color:var(--ink2);font-weight:500}
+.tabs button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.hide{display:none}
+.sum{display:flex;gap:8px;margin:12px 0}
+.sum div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 12px}
+.sum b{display:block;font-size:21px;font-weight:600}
+.sum span{font-size:12px;color:var(--ink3)}
+.empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--r);padding:26px 18px;text-align:center;color:var(--ink2);font-size:14.5px}
+.hist{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin:10px 0}
+.hist .d{font-size:12.5px;color:var(--ink3)}
+.symptoms label{display:flex;gap:10px;align-items:flex-start;padding:9px 0;font-size:14.5px;border-bottom:1px solid var(--line)}
+.symptoms input{margin-top:4px;width:19px;height:19px;accent-color:var(--pulse)}
+footer{font-size:12.5px;color:var(--ink3);padding:24px 0 8px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <h1>Pulse</h1>
+    <p class="kicker">Strength sessions built around a heart that has already proved itself.</p>
+    <svg class="trace" viewBox="0 0 560 46" preserveAspectRatio="none" aria-hidden="true">
+      <path class="flat" d="M0 30 H560"/>
+      <path class="beat" d="M0 30 H120 l10 -2 l8 6 l9 -22 l9 34 l10 -18 l8 2 H300 l10 -2 l8 6 l9 -22 l9 34 l10 -18 l8 2 H560"/>
+    </svg>
+  </header>
+
+  <div class="tabs">
+    <button id="tabBuild" aria-pressed="true">Build</button>
+    <button id="tabHist" aria-pressed="false">History</button>
+    <button id="tabRules" aria-pressed="false">Rules</button>
+  </div>
+
+  <!-- ================= BUILD ================= -->
+  <section id="build">
+
+    <div class="step">
+      <div class="step-head"><div class="step-num">1</div><h2>Pick today's focus</h2></div>
+      <p class="hint">Choose one, or combine two. Overlapping muscles are merged automatically.</p>
+      <div class="chips" id="splitChips"></div>
+    </div>
+
+    <div class="step" id="stepCounts">
+      <div class="step-head"><div class="step-num">2</div><h2>Exercises per muscle</h2></div>
+      <p class="hint">Two is the working default. Three when a muscle is the day's headline. Total session load is capped at 24 working sets.</p>
+      <div id="muscleRows"><p class="empty">Pick a focus above and the muscles will appear here.</p></div>
+      <div class="row" style="border-top:1px solid var(--line);margin-top:6px">
+        <div><div class="lbl">Session total</div><div class="sub" id="totalNote">—</div></div>
+        <div style="font-size:21px;font-weight:600" id="totalEx">0</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><div class="step-num">3</div><h2>Equipment mix</h2></div>
+      <p class="hint">Machines and cables are the safest place to push effort — fixed path, easy to bail, easy to keep breathing. Free weights buy you carryover to running and swimming.</p>
+      <div class="slider">
+        <div class="top"><span>Bodyweight</span><b id="vBw">25%</b></div>
+        <input type="range" id="sBw" min="0" max="100" step="5" value="25">
+      </div>
+      <div class="slider">
+        <div class="top"><span>Machine &amp; cable</span><b id="vMc">45%</b></div>
+        <input type="range" id="sMc" min="0" max="100" step="5" value="45">
+      </div>
+      <div class="slider">
+        <div class="top"><span>Free weights</span><b id="vFr">30%</b></div>
+        <input type="range" id="sFr" min="0" max="100" step="5" value="30">
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><div class="step-num">4</div><h2>Effort for today</h2></div>
+      <p class="hint">Pick honestly. Recovery week beats a missed month.</p>
+      <div class="chips" id="levelChips">
+        <button class="chip" data-lvl="recover">Recovery</button>
+        <button class="chip" data-lvl="steady" aria-pressed="true">Steady</button>
+        <button class="chip" data-lvl="build">Build</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div><div class="lbl">Ran or swam today?</div><div class="sub">Adds a longer warm-up buffer and trims one set per exercise.</div></div>
+        <div class="stepper"><button id="cardioTog" style="width:76px;font-size:14px;font-weight:600">No</button></div>
+      </div>
+      <button class="cta" id="genBtn" disabled>Build the session</button>
+    </div>
+  </section>
+
+  <!-- ================= SESSION ================= -->
+  <section id="session" class="hide"></section>
+
+  <!-- ================= HISTORY ================= -->
+  <section id="history" class="hide"></section>
+
+  <!-- ================= RULES ================= -->
+  <section id="rules" class="hide">
+    <div class="guard">
+      <h3>Stop the set, sit down, and call for help</h3>
+      <ul>
+        <li>Chest pressure, tightness, or the ache you remember</li>
+        <li>Pain radiating to jaw, neck, left arm, or between the shoulder blades</li>
+        <li>Breathlessness out of proportion to the effort</li>
+        <li>Light-headedness, greying vision, or a cold sweat</li>
+        <li>Palpitations, a racing pulse that will not settle, or a skipping rhythm</li>
+        <li>Unusual nausea or indigestion during exertion</li>
+      </ul>
+      <p style="font-size:13px;color:var(--ink2);margin-top:8px">Do not walk it off. Sit, stop, and use your emergency plan. One aborted session costs nothing.</p>
+    </div>
+
+    <div class="step">
+      <h2>The seven rules this app never breaks</h2>
+      <ol style="padding-left:19px;font-size:14.5px;color:var(--ink2);line-height:1.65;margin:10px 0 0">
+        <li><b style="color:var(--ink)">Breathe out on the effort.</b> No breath-holding under load. A held breath spikes blood pressure and drops venous return in one move — the single worst habit for a post-infarct lifter.</li>
+        <li><b style="color:var(--ink)">Two reps always left in the tank.</b> Sets stop at RPE 7–8. Nothing here goes to failure.</li>
+        <li><b style="color:var(--ink)">No one-rep maxes, ever.</b> Strength is proven by adding reps and small plates, not by testing singles.</li>
+        <li><b style="color:var(--ink)">Rest is prescription, not weakness.</b> 90–120 s on compounds lets the pressure–rate product fall before the next set.</li>
+        <li><b style="color:var(--ink)">Never skip the cool-down.</b> Stopping dead after loading is when rhythm trouble likes to appear. Five minutes of easy movement, every time.</li>
+        <li><b style="color:var(--ink)">Isometric holds stay short.</b> Planks and wall sits capped at 45 s, breathing throughout.</li>
+        <li><b style="color:var(--ink)">Effort is judged by feel, not the watch.</b> If you are on a beta blocker your heart rate is capped artificially — RPE and the talk test are the honest signals.</li>
+      </ol>
+    </div>
+
+    <div class="step">
+      <h2>Deliberately not in your library</h2>
+      <p class="hint">These are not banned forever. They are excluded because the risk-to-return maths is poor for a well-recovered post-AWMI lifter who already gets his conditioning from running and swimming.</p>
+      <div id="excluded"></div>
+    </div>
+  </section>
+
+  <footer>
+    Pulse is a training tool, not medical advice. It assumes you have a current exercise prescription from your cardiologist and a normal recent stress test. Any new symptom outranks any plan in this app.
+  </footer>
+</div>
+
+<div class="restbar" id="restbar">
+  <div class="t" id="restT">0:00</div>
+  <div class="meta" id="restM">Rest. Breathe through the nose. Let the pulse come down.</div>
+  <button id="restAdd">+30s</button>
+  <button id="restSkip">Skip</button>
+  <div class="bar" id="restBar" style="width:100%"></div>
+</div>
+
+<script>
+/* ============================================================
+   DATA
+   ============================================================ */
+const MUSCLES = {
+  chest:'Chest', shoulders:'Shoulders', triceps:'Triceps',
+  back:'Back', biceps:'Biceps', reardelt:'Rear delts',
+  quads:'Quads', hams:'Hamstrings', glutes:'Glutes', calves:'Calves',
+  core:'Core', obliques:'Obliques'
+};
+const SPLITS = {
+  push:{label:'Push', m:['chest','shoulders','triceps']},
+  pull:{label:'Pull', m:['back','biceps','reardelt']},
+  legs:{label:'Legs', m:['quads','hams','glutes','calves']},
+  upper:{label:'Upper body', m:['chest','back','shoulders','biceps','triceps']},
+  lower:{label:'Lower body', m:['quads','hams','glutes','calves']},
+  core:{label:'Core', m:['core','obliques']}
+};
+// mod: bw | mc (machine+cable) | fr (free weight)   type: c compound / i isolation
+// tier 1 = green (fixed path, easy to breathe, easy to bail) | tier 2 = fine with technique guardrails
+const LIB = [
+// CHEST
+{n:'Machine chest press',m:'chest',mod:'mc',t:'c',tier:1,cue:'Exhale as you press. Stop the bar a fist from the chest.'},
+{n:'Incline machine press',m:'chest',mod:'mc',t:'c',tier:1,cue:'Ribs down, no arch. Breathe out on the drive.'},
+{n:'Pec deck fly',m:'chest',mod:'mc',t:'i',tier:1,cue:'Squeeze for one count, do not clamp the breath.'},
+{n:'Cable chest press (standing)',m:'chest',mod:'mc',t:'c',tier:1,cue:'Split stance, exhale on the push.'},
+{n:'Cable crossover',m:'chest',mod:'mc',t:'i',tier:1,cue:'Light load, long arc, steady breathing.'},
+{n:'Low-to-high cable fly',m:'chest',mod:'mc',t:'i',tier:1,cue:'Elbows soft, finish at sternum height.'},
+{n:'Push-up',m:'chest',mod:'bw',t:'c',tier:1,cue:'Exhale up. If form breaks, go to an incline instead of grinding.'},
+{n:'Incline push-up (bar or bench)',m:'chest',mod:'bw',t:'c',tier:1,cue:'Higher bar equals easier. Ideal first pressing set.'},
+{n:'Dumbbell bench press',m:'chest',mod:'fr',t:'c',tier:2,cue:'Never a max. Set the bells down on the thighs, do not drop and arch.'},
+{n:'Incline dumbbell press',m:'chest',mod:'fr',t:'c',tier:2,cue:'30 degrees, neutral-to-45 grip, exhale on the press.'},
+{n:'Dumbbell fly',m:'chest',mod:'fr',t:'i',tier:2,cue:'Light. Depth to a comfortable stretch, no further.'},
+// SHOULDERS
+{n:'Machine shoulder press',m:'shoulders',mod:'mc',t:'c',tier:1,cue:'Seat high enough that ribs stay down. Exhale up.'},
+{n:'Machine lateral raise',m:'shoulders',mod:'mc',t:'i',tier:1,cue:'To shoulder height only, pause, lower slow.'},
+{n:'Dumbbell lateral raise',m:'shoulders',mod:'fr',t:'i',tier:1,cue:'Light bells, no torso swing, breathe continuously.'},
+{n:'Cable lateral raise',m:'shoulders',mod:'mc',t:'i',tier:1,cue:'Constant tension. One arm at a time keeps the load honest.'},
+{n:'Seated dumbbell press (neutral grip)',m:'shoulders',mod:'fr',t:'c',tier:2,cue:'Neutral grip is kinder to the shoulder. Exhale on the press.'},
+{n:'Landmine press',m:'shoulders',mod:'fr',t:'c',tier:2,cue:'Half-kneeling, ribs stacked, breathe out on the drive.'},
+{n:'Cable front raise',m:'shoulders',mod:'mc',t:'i',tier:1,cue:'Stop at eye level, control the return.'},
+{n:'Dumbbell front raise',m:'shoulders',mod:'fr',t:'i',tier:2,cue:'Alternate arms, no lean back.'},
+{n:'Pike push-up (feet on floor)',m:'shoulders',mod:'bw',t:'c',tier:2,cue:'Head stays above heart level. No full inversions.'},
+{n:'Cable face pull',m:'shoulders',mod:'mc',t:'i',tier:1,cue:'Pull to the forehead, thumbs back. Great for swim posture.'},
+// TRICEPS
+{n:'Rope pushdown',m:'triceps',mod:'mc',t:'i',tier:1,cue:'Elbows pinned, exhale as you extend.'},
+{n:'Straight-bar pushdown',m:'triceps',mod:'mc',t:'i',tier:1,cue:'Full lockout without shrugging.'},
+{n:'Overhead cable extension',m:'triceps',mod:'mc',t:'i',tier:1,cue:'Split stance, ribs down, no breath-hold at the stretch.'},
+{n:'Assisted dip machine',m:'triceps',mod:'mc',t:'c',tier:1,cue:'Use enough assistance to stay smooth for all reps.'},
+{n:'Bench dip (feet on floor)',m:'triceps',mod:'bw',t:'c',tier:2,cue:'Shallow depth. Stop if the shoulder pinches.'},
+{n:'Diamond push-up',m:'triceps',mod:'bw',t:'c',tier:2,cue:'Elevate the hands to keep reps clean.'},
+{n:'Dumbbell overhead extension (two hands)',m:'triceps',mod:'fr',t:'i',tier:2,cue:'Seated with back support, exhale up.'},
+{n:'Dumbbell kickback',m:'triceps',mod:'fr',t:'i',tier:1,cue:'Light, slow, one-count squeeze.'},
+{n:'Close-grip floor press',m:'triceps',mod:'fr',t:'c',tier:2,cue:'Short range, elbows tucked, breathe out on the press.'},
+// BACK
+{n:'Lat pulldown (wide)',m:'back',mod:'mc',t:'c',tier:1,cue:'Exhale as you pull to the collarbone. No leaning back hard.'},
+{n:'Neutral-grip lat pulldown',m:'back',mod:'mc',t:'c',tier:1,cue:'Shoulder-friendly, best first pull of the day.'},
+{n:'Seated cable row',m:'back',mod:'mc',t:'c',tier:1,cue:'Chest tall, no heaving. Exhale on the pull.'},
+{n:'Chest-supported machine row',m:'back',mod:'mc',t:'c',tier:1,cue:'Pad takes the spine out of it — push effort here safely.'},
+{n:'Single-arm cable row',m:'back',mod:'mc',t:'c',tier:1,cue:'Let the shoulder blade travel. Breathe every rep.'},
+{n:'Straight-arm pulldown',m:'back',mod:'mc',t:'i',tier:1,cue:'Soft elbows, ribs down, feel the lats.'},
+{n:'Assisted pull-up machine',m:'back',mod:'mc',t:'c',tier:1,cue:'Assistance set so rep 10 still looks like rep 1.'},
+{n:'Inverted row (bar at hip height)',m:'back',mod:'bw',t:'c',tier:1,cue:'Raise the bar to lighten it. Exhale on the pull.'},
+{n:'Chest-supported dumbbell row',m:'back',mod:'fr',t:'c',tier:2,cue:'Incline bench supports the trunk — no lower-back bracing needed.'},
+{n:'Single-arm dumbbell row (bench)',m:'back',mod:'fr',t:'c',tier:2,cue:'Knee and hand on bench, flat back, no jerking.'},
+{n:'Cable pullover',m:'back',mod:'mc',t:'i',tier:1,cue:'Long lever, light load, continuous breath.'},
+{n:'Back extension (bodyweight)',m:'back',mod:'bw',t:'i',tier:2,cue:'Rise to flat only. No hyperextension, no held breath.'},
+// BICEPS
+{n:'Cable curl (straight bar)',m:'biceps',mod:'mc',t:'i',tier:1,cue:'Elbows fixed at the ribs, exhale on the curl.'},
+{n:'Rope hammer curl',m:'biceps',mod:'mc',t:'i',tier:1,cue:'Neutral grip, good for grip endurance in the pool.'},
+{n:'Machine preacher curl',m:'biceps',mod:'mc',t:'i',tier:1,cue:'Do not let the arm snap straight at the bottom.'},
+{n:'Incline dumbbell curl',m:'biceps',mod:'fr',t:'i',tier:1,cue:'Bench at 45, full stretch, no swing.'},
+{n:'Dumbbell hammer curl',m:'biceps',mod:'fr',t:'i',tier:1,cue:'Alternate or together, both fine. Keep breathing.'},
+{n:'Alternating dumbbell curl',m:'biceps',mod:'fr',t:'i',tier:1,cue:'Supinate as you rise, control the way down.'},
+{n:'Single-arm cable curl',m:'biceps',mod:'mc',t:'i',tier:1,cue:'Constant tension through the whole arc.'},
+{n:'EZ-bar curl',m:'biceps',mod:'fr',t:'i',tier:2,cue:'No hip drive. If the back moves, the weight is wrong.'},
+{n:'Concentration curl',m:'biceps',mod:'fr',t:'i',tier:1,cue:'Seated, braced, one-count squeeze.'},
+{n:'Assisted chin-up',m:'biceps',mod:'mc',t:'c',tier:1,cue:'Exhale on the way up. Never a strained final rep.'},
+// REAR DELTS
+{n:'Reverse pec deck',m:'reardelt',mod:'mc',t:'i',tier:1,cue:'Light, wide, one-count hold.'},
+{n:'Cable rear-delt fly',m:'reardelt',mod:'mc',t:'i',tier:1,cue:'Cross the cables, lead with the elbows.'},
+{n:'Face pull',m:'reardelt',mod:'mc',t:'i',tier:1,cue:'High elbows. The best posture insurance for a swimmer.'},
+{n:'Chest-supported rear-delt fly',m:'reardelt',mod:'fr',t:'i',tier:1,cue:'Face down on an incline bench, tiny bells.'},
+{n:'Band pull-apart',m:'reardelt',mod:'bw',t:'i',tier:1,cue:'Perfect between-sets filler. Breathe out on the pull.'},
+{n:'Prone Y-raise',m:'reardelt',mod:'bw',t:'i',tier:1,cue:'Thumbs up, no weight needed. Slow tempo.'},
+// QUADS
+{n:'Leg press',m:'quads',mod:'mc',t:'c',tier:1,cue:'Exhale on the press. Never bring the knees into the chest — that pins the diaphragm.'},
+{n:'Leg extension',m:'quads',mod:'mc',t:'i',tier:1,cue:'One-count hold at the top, controlled return.'},
+{n:'Hack squat machine',m:'quads',mod:'mc',t:'c',tier:2,cue:'Moderate load only. Exhale on the way up, every rep.'},
+{n:'Goblet squat',m:'quads',mod:'fr',t:'c',tier:2,cue:'Bell at the chest, breathe out as you stand. Depth to comfort.'},
+{n:'Bodyweight or box squat',m:'quads',mod:'bw',t:'c',tier:1,cue:'Touch the box, do not sit and bounce.'},
+{n:'Rear-foot-elevated split squat',m:'quads',mod:'bw',t:'c',tier:2,cue:'Balance first, load later. Strong transfer to running.'},
+{n:'Walking lunge',m:'quads',mod:'fr',t:'c',tier:2,cue:'Short steps, tall torso, steady breath rhythm.'},
+{n:'Box step-up',m:'quads',mod:'fr',t:'c',tier:1,cue:'Drive through the whole foot. Knee-height box maximum.'},
+{n:'Smith machine squat',m:'quads',mod:'mc',t:'c',tier:2,cue:'Fixed path, easy to bail. Still no maximal sets.'},
+{n:'Wall sit',m:'quads',mod:'bw',t:'i',tier:2,cue:'Hard cap 30 seconds and count reps out loud so you cannot hold the breath.'},
+// HAMSTRINGS
+{n:'Seated leg curl',m:'hams',mod:'mc',t:'i',tier:1,cue:'Slow the eccentric. Direct insurance against a hamstring strain on the run.'},
+{n:'Lying leg curl',m:'hams',mod:'mc',t:'i',tier:1,cue:'Hips stay down, no snapping back.'},
+{n:'Dumbbell Romanian deadlift',m:'hams',mod:'fr',t:'c',tier:2,cue:'Moderate load, hinge to mid-shin, exhale on the way up. Never a max hinge.'},
+{n:'Cable pull-through',m:'hams',mod:'mc',t:'c',tier:1,cue:'The safest hinge you can load. Breathe out at lockout.'},
+{n:'Slider or ball leg curl',m:'hams',mod:'bw',t:'i',tier:1,cue:'Hips high, slow return.'},
+{n:'Single-leg dumbbell RDL',m:'hams',mod:'fr',t:'c',tier:2,cue:'Light bell, hand on a rack for balance. Builds run stability.'},
+{n:'Hamstring-bias back extension',m:'hams',mod:'bw',t:'i',tier:1,cue:'Round the upper back slightly, rise to flat only.'},
+{n:'Assisted Nordic curl',m:'hams',mod:'bw',t:'i',tier:2,cue:'Band assisted, lower for 4 seconds, push back up with the hands.'},
+// GLUTES
+{n:'Machine hip thrust',m:'glutes',mod:'mc',t:'c',tier:1,cue:'Exhale at lockout. Chin tucked, ribs down.'},
+{n:'Cable kickback',m:'glutes',mod:'mc',t:'i',tier:1,cue:'One-count squeeze, no lower-back arch.'},
+{n:'Glute bridge',m:'glutes',mod:'bw',t:'i',tier:1,cue:'Two-count hold at the top, breathing throughout.'},
+{n:'Hip abduction machine',m:'glutes',mod:'mc',t:'i',tier:1,cue:'Lean slightly forward. Direct help for hip drop when you run.'},
+{n:'Banded lateral walk',m:'glutes',mod:'bw',t:'i',tier:1,cue:'Band above the knees, small steady steps.'},
+{n:'Bulgarian split squat',m:'glutes',mod:'fr',t:'c',tier:2,cue:'Torso leaned forward for glute bias. Light bells.'},
+{n:'Reverse lunge',m:'glutes',mod:'fr',t:'c',tier:2,cue:'Step back, not forward — kinder to the knee.'},
+{n:'Cable pull-through (glute bias)',m:'glutes',mod:'mc',t:'c',tier:1,cue:'Squeeze at the top rather than leaning back.'},
+// CALVES
+{n:'Standing calf raise',m:'calves',mod:'mc',t:'i',tier:1,cue:'Full stretch, two-count squeeze at the top.'},
+{n:'Seated calf raise',m:'calves',mod:'mc',t:'i',tier:1,cue:'Hits soleus — the muscle that carries you at 6:45 pace.'},
+{n:'Leg press calf press',m:'calves',mod:'mc',t:'i',tier:1,cue:'Slow, no bouncing off the plate.'},
+{n:'Single-leg calf raise on a step',m:'calves',mod:'bw',t:'i',tier:1,cue:'Hold a rack for balance. 12–20 reps a side.'},
+{n:'Eccentric heel drop',m:'calves',mod:'bw',t:'i',tier:1,cue:'Up on two, down on one over 4 seconds. Achilles insurance.'},
+{n:'Dumbbell calf raise',m:'calves',mod:'fr',t:'i',tier:1,cue:'Bells at the sides, full range.'},
+// CORE
+{n:'Dead bug',m:'core',mod:'bw',t:'i',tier:1,cue:'Exhale as the limbs extend. Breathing is the exercise.'},
+{n:'Front plank',m:'core',mod:'bw',t:'i',tier:1,cue:'30–45 seconds maximum, breathing the whole time. No breath-hold bracing.'},
+{n:'Half-kneeling Pallof press',m:'core',mod:'mc',t:'i',tier:1,cue:'Resist the rotation, exhale as you press out.'},
+{n:'Hanging or captain-chair knee raise',m:'core',mod:'bw',t:'i',tier:2,cue:'Controlled, no swing. Come down if the grip fails.'},
+{n:'Kneeling cable crunch',m:'core',mod:'mc',t:'i',tier:1,cue:'Exhale as you curl down. Moderate load, no straining face.'},
+{n:'Machine ab crunch',m:'core',mod:'mc',t:'i',tier:1,cue:'Fixed path, easy to breathe. Steady tempo.'},
+{n:'Reverse crunch',m:'core',mod:'bw',t:'i',tier:1,cue:'Lift with the abs, not momentum.'},
+{n:'Bird dog',m:'core',mod:'bw',t:'i',tier:1,cue:'Slow, long, breathing. Excellent for run posture.'},
+{n:'Ab wheel from knees',m:'core',mod:'bw',t:'i',tier:2,cue:'Short range to start. Stop well before the back sags.'},
+{n:'Lying leg raise',m:'core',mod:'bw',t:'i',tier:1,cue:'Hands under the hips, lower back stays flat.'},
+{n:'Suitcase carry',m:'core',mod:'fr',t:'i',tier:1,cue:'Moderate bell, 20–30 m, breathe normally. Do not hold the breath to brace.'},
+// OBLIQUES
+{n:'Side plank',m:'obliques',mod:'bw',t:'i',tier:1,cue:'30 seconds a side maximum, breathing throughout.'},
+{n:'Cable woodchop (high to low)',m:'obliques',mod:'mc',t:'i',tier:1,cue:'Pivot the back foot, exhale through the chop.'},
+{n:'Cable low-to-high chop',m:'obliques',mod:'mc',t:'i',tier:1,cue:'Light load, long controlled arc.'},
+{n:'Bicycle crunch',m:'obliques',mod:'bw',t:'i',tier:1,cue:'Slow and deliberate. Count reps aloud to keep breathing.'},
+{n:'Landmine rotation',m:'obliques',mod:'fr',t:'i',tier:2,cue:'Hips rotate with the bar. Moderate load only.'},
+{n:'Copenhagen plank (short lever)',m:'obliques',mod:'bw',t:'i',tier:2,cue:'Knee on the bench, 20 seconds a side.'},
+{n:'Dumbbell suitcase hold walk',m:'obliques',mod:'fr',t:'i',tier:1,cue:'One side loaded, stay square, keep breathing.'},
+{n:'Half-kneeling anti-rotation hold',m:'obliques',mod:'mc',t:'i',tier:1,cue:'20 seconds, exhale slowly against the pull.'}
+];
+
+const EXCLUDED = [
+ ['One-rep max testing, any lift','A maximal effort couples peak intrathoracic pressure with peak heart rate. There is no version of this worth the information it gives you.'],
+ ['Heavy barbell back squat and conventional deadlift near limit','Highest Valsalva load of any gym movement. The leg press, hack squat, pull-through and RDL cover the same ground with a fraction of the blood-pressure spike.'],
+ ['Any set taken to muscular failure','The last two grinding reps are where breath-holding becomes involuntary. Stop at RPE 8.'],
+ ['Behind-the-neck press and pulldown','Shoulder risk with no unique benefit.'],
+ ['Handstand push-ups and full inversions','Head below heart under load is a needless pressure swing.'],
+ ['Maximal isometrics beyond 45 seconds','Sustained holds drive blood pressure up steeply with no matching cardiac output rise.'],
+ ['Loaded AMRAP circuits and metcon finishers','You already have superb conditioning from running and swimming. Doing it under load buys risk, not fitness.']
+];
+
+/* ============================================================
+   STATE + STORAGE
+   ============================================================ */
+const S = { splits:[], counts:{}, mix:{bw:25,mc:45,fr:30}, level:'steady', cardio:false, session:null };
+const mem = {};
+async function sget(k){ try{ const v = localStorage.getItem(k); return v? JSON.parse(v):null; }catch(e){ return mem[k]||null; } }
+async function sset(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ mem[k]=v; } }
+
+const $ = id => document.getElementById(id);
+const vid = n => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(n + ' proper form technique');
+
+/* ============================================================
+   STEP 1-4 UI
+   ============================================================ */
+function renderSplits(){
+  $('splitChips').innerHTML = Object.entries(SPLITS).map(([k,v])=>
+    `<button class="chip" data-split="${k}" aria-pressed="${S.splits.includes(k)}">${v.label}</button>`).join('');
+  $('splitChips').querySelectorAll('button').forEach(b=>{
+    b.disabled = S.splits.length>=2 && !S.splits.includes(b.dataset.split);
+    b.onclick = ()=>{
+      const k=b.dataset.split;
+      S.splits = S.splits.includes(k) ? S.splits.filter(x=>x!==k) : [...S.splits,k].slice(0,2);
+      renderSplits(); renderCounts();
+    };
+  });
+}
+function activeMuscles(){
+  const out=[]; S.splits.forEach(s=>SPLITS[s].m.forEach(m=>{ if(!out.includes(m)) out.push(m); })); return out;
+}
+function defaultCount(m, n){
+  if(n>=6) return ['calves','reardelt','obliques'].includes(m)?1:2;
+  return ['calves','reardelt','obliques','biceps','triceps'].includes(m)?2:3;
+}
+function renderCounts(){
+  const ms = activeMuscles();
+  if(!ms.length){ $('muscleRows').innerHTML='<p class="empty">Pick a focus above and the muscles will appear here.</p>'; updateTotal(); return; }
+  ms.forEach(m=>{ if(S.counts[m]===undefined) S.counts[m]=defaultCount(m,ms.length); });
+  Object.keys(S.counts).forEach(m=>{ if(!ms.includes(m)) delete S.counts[m]; });
+  $('muscleRows').innerHTML = ms.map(m=>{
+    const pool = LIB.filter(e=>e.m===m).length;
+    return `<div class="row">
+      <div><div class="lbl">${MUSCLES[m]}</div><div class="sub">${pool} exercises available</div></div>
+      <div class="stepper">
+        <button data-dec="${m}" aria-label="Fewer ${MUSCLES[m]} exercises">−</button>
+        <div class="val" id="c-${m}">${S.counts[m]}</div>
+        <button data-inc="${m}" aria-label="More ${MUSCLES[m]} exercises">+</button>
+      </div></div>`;
+  }).join('');
+  $('muscleRows').querySelectorAll('[data-dec]').forEach(b=>b.onclick=()=>{const m=b.dataset.dec;S.counts[m]=Math.max(0,S.counts[m]-1);renderCounts();});
+  $('muscleRows').querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>{const m=b.dataset.inc;S.counts[m]=Math.min(5,S.counts[m]+1);renderCounts();});
+  updateTotal();
+}
+function setsPerEx(){ return S.level==='build'?4:(S.level==='recover'?2:3); }
+function updateTotal(){
+  const n = Object.values(S.counts).reduce((a,b)=>a+b,0);
+  const sets = n * setsPerEx() - (S.cardio?n:0);
+  $('totalEx').textContent = n;
+  const mins = Math.round(n*setsPerEx()*2.4 + 14);
+  $('totalNote').textContent = n ? `${Math.max(0,sets)} working sets · about ${mins} min door to door` : '—';
+  $('genBtn').disabled = n===0;
+  $('totalNote').style.color = sets>24 ? 'var(--pulse)' : 'var(--ink3)';
+  if(sets>24) $('totalNote').textContent += ' — over your 24-set ceiling';
+}
+
+// sliders auto-normalise to 100
+const SL = {bw:['sBw','vBw'], mc:['sMc','vMc'], fr:['sFr','vFr']};
+function paintMix(){ Object.entries(SL).forEach(([k,[s,v]])=>{ $(s).value=S.mix[k]; $(v).textContent=S.mix[k]+'%'; }); }
+Object.keys(SL).forEach(k=>{
+  $(SL[k][0]).oninput = e=>{
+    const val = +e.target.value, others = Object.keys(SL).filter(x=>x!==k);
+    const rest = 100-val, sum = others.reduce((a,x)=>a+S.mix[x],0);
+    S.mix[k]=val;
+    if(sum===0){ others.forEach(x=>S.mix[x]=Math.round(rest/2/5)*5); }
+    else others.forEach(x=>S.mix[x]=Math.round(S.mix[x]/sum*rest/5)*5);
+    const drift = 100-Object.values(S.mix).reduce((a,b)=>a+b,0);
+    S.mix[others[0]] = Math.max(0,S.mix[others[0]]+drift);
+    paintMix();
+  };
+});
+$('levelChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  S.level=b.dataset.lvl;
+  $('levelChips').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b));
+  updateTotal();
+});
+$('cardioTog').onclick = ()=>{ S.cardio=!S.cardio; $('cardioTog').textContent=S.cardio?'Yes':'No'; updateTotal(); };
+
+/* ============================================================
+   SELECTION ENGINE
+   ============================================================ */
+function shuffle(a){ a=[...a]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function quota(n, mix){
+  const keys=['bw','mc','fr'], raw=keys.map(k=>n*mix[k]/100), out=raw.map(Math.floor);
+  let left=n-out.reduce((a,b)=>a+b,0);
+  const order=keys.map((k,i)=>[i,raw[i]-out[i]]).sort((a,b)=>b[1]-a[1]);
+  for(let i=0;i<left;i++) out[order[i%3][0]]++;
+  return {bw:out[0],mc:out[1],fr:out[2]};
+}
+function pickForMuscle(m, n, used){
+  if(n===0) return [];
+  const pool = LIB.filter(e=>e.m===m && !used.has(e.n));
+  const q = quota(n, S.mix), out=[];
+  ['mc','bw','fr'].forEach(mod=>{
+    let need=q[mod];
+    const cands = shuffle(pool.filter(e=>e.mod===mod && !out.includes(e)))
+      .sort((a,b)=> (a.tier-b.tier) || (b.t==='c') - (a.t==='c'));
+    while(need>0 && cands.length){ out.push(cands.shift()); need--; }
+    q[mod]=need;
+  });
+  let deficit = n-out.length;
+  if(deficit>0){
+    const rest = shuffle(pool.filter(e=>!out.includes(e))).sort((a,b)=>a.tier-b.tier);
+    while(deficit>0 && rest.length){ out.push(rest.shift()); deficit--; }
+  }
+  out.forEach(e=>used.add(e.n));
+  return out.sort((a,b)=> (b.t==='c')-(a.t==='c') || a.tier-b.tier);
+}
+function prescribe(e){
+  const base = setsPerEx() - (S.cardio?1:0);
+  const sets = Math.max(2, base);
+  if(e.n.match(/plank|hold|wall sit|carry|walk/i)) return {sets, reps:'25–40 s', rest:60, rpe:'6–7'};
+  if(e.t==='c') return {sets, reps: S.level==='build'?'8–10':'10–12', rest:120, rpe: S.level==='recover'?'6':'7–8'};
+  return {sets, reps: S.level==='build'?'10–12':'12–15', rest:75, rpe: S.level==='recover'?'6':'7'};
+}
+function warmup(ms){
+  const bits = ['5 min easy cardio — treadmill walk at incline, bike, or 100 m easy swim. Nose breathing only.'];
+  if(S.cardio) bits.push('You already trained today: add 3 min of easy movement and start the first exercise 20% lighter than you think.');
+  if(ms.some(m=>['chest','shoulders','triceps','back','biceps','reardelt'].includes(m)))
+    bits.push('Shoulders: 15 band pull-aparts, 10 wall slides, 10 scapular push-ups.');
+  if(ms.some(m=>['quads','hams','glutes','calves'].includes(m)))
+    bits.push('Hips and ankles: 10 leg swings a side, 10 bodyweight squats, 12 calf raises, 8 glute bridges.');
+  if(ms.some(m=>['core','obliques'].includes(m)))
+    bits.push('Trunk: 8 dead bugs, 8 bird dogs, 5 slow breaths lying down.');
+  bits.push('First working exercise: one ramp set at roughly half the working weight for 10 easy reps. This is not optional — it is your ischaemic preconditioning set.');
+  return bits;
+}
+const COOLDOWN = [
+  '5 min walking or very easy spinning until your breathing is conversational and your pulse is drifting down. Never stop dead after the last set.',
+  'Stretch what you trained: 30 s a side, breathing out into each position. No bouncing.',
+  '2 min lying down, hands on the ribs, six slow breaths a minute. This is the parasympathetic switch that makes tomorrow easier.',
+  'Water, then protein within the hour. Note anything that felt off while it is still fresh.'
+];
+
+/* ============================================================
+   SESSION RENDER
+   ============================================================ */
+let LAST = {};
+async function build(){
+  const ms = activeMuscles(), used=new Set(), items=[];
+  ms.forEach(m=>pickForMuscle(m, S.counts[m], used).forEach(e=>items.push(e)));
+  // big compounds first, isolations and core last
+  items.sort((a,b)=> (b.t==='c')-(a.t==='c') || a.tier-b.tier);
+  const coreIdx = items.filter(e=>['core','obliques'].includes(e.m));
+  const rest = items.filter(e=>!['core','obliques'].includes(e.m));
+  LAST = (await sget('pulse:last')) || {};
+  S.session = {
+    date:new Date().toISOString(),
+    splits:S.splits.map(s=>SPLITS[s].label),
+    level:S.level, cardio:S.cardio,
+    items:[...rest,...coreIdx].map(e=>{
+      const rx = prescribe(e);
+      return {...e, rx, log: Array.from({length:rx.sets},()=>({w:'',r:'',done:false}))};
+    })
+  };
+  drawSession();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function drawSession(){
+  const s=S.session;
+  const html = `
+  <div class="step" style="border-left:3px solid var(--pulse)">
+    <h2>${s.splits.join(' + ')} — ${s.level==='build'?'build':s.level==='recover'?'recovery':'steady'} day</h2>
+    <p class="hint" style="margin-bottom:0">${s.items.length} exercises · ${s.items.reduce((a,e)=>a+e.rx.sets,0)} working sets · target RPE 7–8, always two reps in reserve.</p>
+  </div>
+
+  <div class="guard">
+    <h3>Before the first rep</h3>
+    <ul>
+      <li>Exhale on every effort. If you cannot talk through a rep, the weight is too heavy.</li>
+      <li>Nothing goes to failure. Rack it with two clean reps still available.</li>
+      <li>Sit up slowly between sets — no snapping upright off a bench.</li>
+      <li>Any chest, jaw or arm symptom: stop, sit, do not finish the set.</li>
+    </ul>
+  </div>
+
+  <div class="step">
+    <h3>Warm-up · 8–10 min</h3>
+    <ul style="padding-left:18px;font-size:14px;color:var(--ink2);line-height:1.6;margin:9px 0 0">
+      ${warmup(activeMuscles()).map(x=>`<li style="margin:5px 0">${x}</li>`).join('')}
+    </ul>
+  </div>
+
+  ${s.items.map((e,i)=>exCard(e,i)).join('')}
+
+  <div class="step">
+    <h3>Cool-down · 5–7 min</h3>
+    <ul style="padding-left:18px;font-size:14px;color:var(--ink2);line-height:1.6;margin:9px 0 0">
+      ${COOLDOWN.map(x=>`<li style="margin:5px 0">${x}</li>`).join('')}
+    </ul>
+  </div>
+
+  <div class="step symptoms">
+    <h3>Close out the session</h3>
+    <p class="hint">Tick anything you felt. This builds the record you bring to your next cardiology review.</p>
+    <div id="sxList">${['Chest discomfort or pressure','Unusual breathlessness','Light-headedness or dizziness','Palpitations or irregular beats','Cold sweat or nausea','Unusual fatigue afterwards','None of these — felt good']
+      .map((x,i)=>`<label><input type="checkbox" data-sx="${i}" value="${x}"><span>${x}</span></label>`).join('')}</div>
+    <div class="row"><div class="lbl">Resting pulse after cool-down</div>
+      <input id="postHr" inputmode="numeric" placeholder="bpm" style="width:92px;border:1px solid var(--line);border-radius:9px;padding:10px;text-align:center;font-weight:600"></div>
+    <button class="cta" id="saveBtn">Save session</button>
+    <button class="ghost" id="backBtn">Discard and rebuild</button>
+  </div>`;
+  $('session').innerHTML = html;
+  wireSession();
+}
+function exCard(e,i){
+  const prev = LAST[e.n];
+  const modName = {bw:'Bodyweight', mc:'Machine / cable', fr:'Free weight'}[e.mod];
+  return `<div class="ex" id="ex-${i}">
+    <div class="ex-top">
+      <h3>${e.n}</h3>
+      <button class="tick" data-collapse="${i}" aria-pressed="false" title="Mark exercise complete">✓</button>
+    </div>
+    <div class="tags">
+      <span class="tag">${MUSCLES[e.m]}</span>
+      <span class="tag">${modName}</span>
+      <span class="tag">${e.t==='c'?'Compound':'Isolation'}</span>
+      <span class="tag t${e.tier}">${e.tier===1?'Lowest-risk pick':'Technique-critical'}</span>
+    </div>
+    <p class="rx">${e.rx.sets} sets · ${e.rx.reps} · RPE ${e.rx.rpe} · rest ${e.rx.rest}s</p>
+    ${prev?`<p class="prev">Last time: ${prev.w} kg × ${prev.r} on ${new Date(prev.d).toLocaleDateString()}</p>`:'<p class="prev">No history yet — start light and find the honest weight.</p>'}
+    <p class="cue">${e.cue}</p>
+    <table class="sets">
+      <thead><tr><th></th><th>Weight (kg)</th><th>Reps</th><th></th></tr></thead>
+      <tbody id="sets-${i}">${e.log.map((l,j)=>setRow(i,j,l)).join('')}</tbody>
+    </table>
+    <button class="addset" data-add="${i}">+ Add a set</button>
+    <div class="exbtns">
+      <a href="${vid(e.n)}" target="_blank" rel="noopener">Form video</a>
+      <button data-swap="${i}">Swap exercise</button>
+    </div>
+  </div>`;
+}
+function setRow(i,j,l){
+  return `<tr><td class="setno">${j+1}</td>
+    <td><input inputmode="decimal" placeholder="—" value="${l.w}" data-w="${i}-${j}"></td>
+    <td><input inputmode="numeric" placeholder="—" value="${l.r}" data-r="${i}-${j}"></td>
+    <td><button class="tick" data-done="${i}-${j}" aria-pressed="${l.done}">✓</button></td></tr>`;
+}
+function wireSession(){
+  const s=S.session;
+  $('session').querySelectorAll('[data-w]').forEach(inp=>inp.oninput=e=>{
+    const [i,j]=e.target.dataset.w.split('-').map(Number); s.items[i].log[j].w=e.target.value; });
+  $('session').querySelectorAll('[data-r]').forEach(inp=>inp.oninput=e=>{
+    const [i,j]=e.target.dataset.r.split('-').map(Number); s.items[i].log[j].r=e.target.value; });
+  $('session').querySelectorAll('[data-done]').forEach(b=>b.onclick=()=>{
+    const [i,j]=b.dataset.done.split('-').map(Number);
+    const l=s.items[i].log[j]; l.done=!l.done; b.setAttribute('aria-pressed', l.done);
+    if(l.done) startRest(s.items[i].rx.rest, s.items[i].n);
+  });
+  $('session').querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.add; s.items[i].log.push({w:'',r:'',done:false});
+    $('sets-'+i).innerHTML = s.items[i].log.map((l,j)=>setRow(i,j,l)).join(''); wireSession();
+  });
+  $('session').querySelectorAll('[data-collapse]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.collapse, on=b.getAttribute('aria-pressed')!=='true';
+    b.setAttribute('aria-pressed',on); $('ex-'+i).classList.toggle('done',on);
+  });
+  $('session').querySelectorAll('[data-swap]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.swap, cur=s.items[i];
+    const usedNames = new Set(s.items.map(x=>x.n));
+    const alt = shuffle(LIB.filter(e=>e.m===cur.m && !usedNames.has(e.n))).sort((a,b)=>a.tier-b.tier)[0];
+    if(!alt){ b.textContent='No alternative left'; return; }
+    s.items[i] = {...alt, rx:prescribe(alt), log:Array.from({length:prescribe(alt).sets},()=>({w:'',r:'',done:false}))};
+    drawSession();
+  });
+  $('saveBtn').onclick = save;
+  $('backBtn').onclick = ()=>{ S.session=null; show('build'); };
+}
+
+/* ============================================================
+   REST TIMER
+   ============================================================ */
+let restTimer=null, restLeft=0, restTotal=0;
+function startRest(sec,name){
+  clearInterval(restTimer); restLeft=sec; restTotal=sec;
+  $('restbar').classList.add('on'); document.body.classList.add('resting');
+  $('restM').textContent = 'Rest before the next set of ' + name + '. Nose breathing, shoulders down.';
+  paintRest();
+  restTimer=setInterval(()=>{ restLeft--; paintRest(); if(restLeft<=0) endRest(true); },1000);
+}
+function paintRest(){
+  const m=Math.floor(Math.max(0,restLeft)/60), s=Math.max(0,restLeft)%60;
+  $('restT').textContent = m+':'+String(s).padStart(2,'0');
+  $('restBar').style.width = Math.max(0,restLeft/restTotal*100)+'%';
+}
+function endRest(beep){
+  clearInterval(restTimer); $('restbar').classList.remove('on'); document.body.classList.remove('resting');
+  if(beep) try{
+    const c=new (window.AudioContext||window.webkitAudioContext)(), o=c.createOscillator(), g=c.createGain();
+    o.frequency.value=660; o.connect(g); g.connect(c.destination); g.gain.value=.09;
+    o.start(); setTimeout(()=>{o.stop();c.close();},220);
+  }catch(e){}
+}
+$('restSkip').onclick=()=>endRest(false);
+$('restAdd').onclick=()=>{ restLeft+=30; restTotal=Math.max(restTotal,restLeft); paintRest(); };
+
+/* ============================================================
+   SAVE + HISTORY
+   ============================================================ */
+async function save(){
+  const s=S.session;
+  const sx=[...$('sxList').querySelectorAll('input:checked')].map(x=>x.value);
+  const tonnage = s.items.reduce((a,e)=>a+e.log.reduce((b,l)=>b+((+l.w||0)*(+l.r||0)),0),0);
+  const setsDone = s.items.reduce((a,e)=>a+e.log.filter(l=>l.done||l.r).length,0);
+  const rec = { date:s.date, splits:s.splits, level:s.level, tonnage:Math.round(tonnage), setsDone,
+    postHr:$('postHr').value, symptoms:sx,
+    items:s.items.map(e=>({n:e.n,m:e.m,log:e.log.filter(l=>l.w||l.r)})) };
+  const all = (await sget('pulse:sessions'))||[]; all.unshift(rec); await sset('pulse:sessions', all.slice(0,60));
+  const last = (await sget('pulse:last'))||{};
+  s.items.forEach(e=>{ const best=e.log.filter(l=>+l.w>0).sort((a,b)=>(+b.w*+b.r)-(+a.w*+a.r))[0];
+    if(best) last[e.n]={w:best.w,r:best.r,d:s.date}; });
+  await sset('pulse:last', last);
+  S.session=null; await renderHistory(); show('history');
+}
+async function renderHistory(){
+  const all=(await sget('pulse:sessions'))||[];
+  if(!all.length){ $('history').innerHTML='<p class="empty">No sessions yet. Build one and it will land here with your working weights, so next week starts from a number instead of a guess.</p>'; return; }
+  const week = all.filter(r=>Date.now()-new Date(r.date)<7*864e5);
+  const flagged = all.filter(r=>r.symptoms.length && !r.symptoms.includes('None of these — felt good'));
+  $('history').innerHTML = `
+    <div class="sum">
+      <div><b>${week.length}</b><span>strength sessions this week</span></div>
+      <div><b>${week.reduce((a,r)=>a+r.setsDone,0)}</b><span>sets logged</span></div>
+      <div><b>${(week.reduce((a,r)=>a+r.tonnage,0)/1000).toFixed(1)}t</b><span>volume moved</span></div>
+    </div>
+    ${flagged.length?`<div class="guard"><h3>${flagged.length} session${flagged.length>1?'s':''} with a symptom logged</h3><ul>${flagged.slice(0,4).map(r=>`<li>${new Date(r.date).toLocaleDateString()} — ${r.symptoms.join(', ')}</li>`).join('')}</ul><p style="font-size:13px;color:var(--ink2);margin-top:8px">Take this list to your cardiologist rather than deciding on your own what it meant.</p></div>`:''}
+    ${all.map(r=>`<div class="hist">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h3>${r.splits.join(' + ')}</h3><div class="d">${new Date(r.date).toLocaleDateString()}</div></div>
+      <div class="d" style="margin-top:4px">${r.setsDone} sets · ${r.tonnage.toLocaleString()} kg moved${r.postHr?` · pulse after cool-down ${r.postHr}`:''}</div>
+      <div style="font-size:13.5px;color:var(--ink2);margin-top:7px">${r.items.filter(i=>i.log.length).map(i=>`${i.n} ${i.log.map(l=>`${l.w||'bw'}×${l.r}`).join(', ')}`).join(' · ')||'No sets recorded'}</div>
+    </div>`).join('')}`;
+}
+
+/* ============================================================
+   NAV + BOOT
+   ============================================================ */
+function show(which){
+  const map={build:'build',session:'session',history:'history',rules:'rules'};
+  Object.values(map).forEach(id=>$(id).classList.add('hide'));
+  $(map[which]).classList.remove('hide');
+  $('tabBuild').setAttribute('aria-pressed', which==='build'||which==='session');
+  $('tabHist').setAttribute('aria-pressed', which==='history');
+  $('tabRules').setAttribute('aria-pressed', which==='rules');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+$('tabBuild').onclick=()=>show(S.session?'session':'build');
+$('tabHist').onclick=async()=>{ await renderHistory(); show('history'); };
+$('tabRules').onclick=()=>show('rules');
+$('genBtn').onclick=()=>{ build(); show('session'); };
+
+$('excluded').innerHTML = EXCLUDED.map(([t,w])=>
+  `<div style="padding:11px 0;border-bottom:1px solid var(--line)">
+     <div style="font-weight:600;font-size:15px">${t}</div>
+     <div style="font-size:13.5px;color:var(--ink2);margin-top:3px">${w}</div></div>`).join('');
+
+renderSplits(); renderCounts(); paintMix();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>
